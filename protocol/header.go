@@ -1,7 +1,9 @@
 package protocol
 
+//定义报文格式
+
 const (
-	HEADER_LEN = 5
+	HeaderLen = 5
 )
 
 const (
@@ -29,7 +31,7 @@ const (
 	JSON
 )
 
-type Header [HEADER_LEN]byte
+type Header [HeaderLen]byte
 
 func (h *Header) CheckMagicNumber() bool {
 	return h[0] == magicNumber

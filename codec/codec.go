@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 )
 
+// Codec 封装接口
 type Codec interface {
 	Encode(i interface{}) ([]byte, error)
 	Decode(data []byte, i interface{}) error
 }
+
+//将JSON、GOB格式的编解码函数进行封装，称为一个编解码器
 
 // JSONCodec JSON格式
 type JSONCodec struct{}
@@ -20,7 +23,6 @@ func (c JSONCodec) Encode(i interface{}) ([]byte, error) {
 
 func (c JSONCodec) Decode(data []byte, i interface{}) error {
 	decode := json.NewDecoder(bytes.NewBuffer(data))
-	//	decode.UseNumber()
 	return decode.Decode(i)
 }
 

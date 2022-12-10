@@ -12,10 +12,17 @@ import (
 	"ya-rpc/protocol"
 )
 
+// Client 定义客户端接口
 type Client interface {
 	Connect(string) error
 	Invoke(context.Context, *Service, interface{}, ...interface{}) (interface{}, error)
 	Close()
+}
+
+// RPCClient RPC客户端类
+type RPCClient struct {
+	conn   net.Conn
+	option Option
 }
 
 // Option 定义连接参数，设置重试次数、超时时间、序列化协议、压缩类型等。
@@ -33,17 +40,13 @@ var DefaultOption = Option{
 	CompressType:      protocol.None,
 } //默认参数
 
-type RPCClient struct {
-	conn   net.Conn
-	option Option
-}
-
 func NewClient(option Option) Client {
 	return &RPCClient{option: option}
 }
 func (cli *RPCClient) Connect(addr string) error {
 	conn, err := net.DialTimeout(config.NET_TRANS_PROTOCOL, addr, cli.option.ConnectionTimeout)
 	if err != nil {
+		log.Println("connect error:", err)
 		return err
 	}
 	cli.conn = conn
@@ -67,6 +70,7 @@ func (cli *RPCClient) makeCall(service *Service, methodPtr interface{}) {
 
 	handler := func(req []reflect.Value) []reflect.Value {
 		numOut := container.Type().NumOut()
+		//获取函数返回值个数-->numOut
 		errorHandler := func(err error) []reflect.Value {
 			outArgs := make([]reflect.Value, numOut)
 			for i := 0; i < len(outArgs)-1; i++ {
@@ -76,12 +80,14 @@ func (cli *RPCClient) makeCall(service *Service, methodPtr interface{}) {
 			return outArgs
 		}
 		inArgs := make([]interface{}, 0, len(req))
+		//inArgs: 输入的参数
 		for _, arg := range req {
 			inArgs = append(inArgs, arg.Interface())
 		}
-		payload, err := coder.Encode(inArgs) //[]byte
+		payload, err := coder.Encode(inArgs)
+		//序列化
 		if err != nil {
-			log.Printf("encode err:%v\n", err)
+			log.Println("encode err:", err)
 			return errorHandler(err)
 		}
 		msg := protocol.NewRPCMsg()
@@ -97,12 +103,12 @@ func (cli *RPCClient) makeCall(service *Service, methodPtr interface{}) {
 			log.Printf("send err:%v\n", err)
 			return errorHandler(err)
 		}
-		respMsg, err := protocol.Read(cli.conn)
+		resMsg, err := protocol.Read(cli.conn)
 		if err != nil {
 			return errorHandler(err)
 		}
 		respDecode := make([]interface{}, 0)
-		err = coder.Decode(respMsg.Payload, &respDecode)
+		err = coder.Decode(resMsg.Payload, &respDecode)
 		if err != nil {
 			log.Printf("decode err:%v\n", err)
 			return errorHandler(err)
@@ -122,6 +128,7 @@ func (cli *RPCClient) makeCall(service *Service, methodPtr interface{}) {
 				outArgs[i] = reflect.Zero(container.Type().Out(i))
 			}
 		}
+
 		return outArgs
 	}
 	container.Set(reflect.MakeFunc(container.Type(), handler))
@@ -136,5 +143,6 @@ func (cli *RPCClient) wrapCall(ctx context.Context, stub interface{}, params ...
 		in[idx] = reflect.ValueOf(param)
 	}
 	result := f.Call(in)
+
 	return result, nil
 }

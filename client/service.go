@@ -3,16 +3,17 @@ package client
 import (
 	"errors"
 	"strings"
+	"ya-rpc/config"
 )
 
 type Service struct {
-	AppId  string
-	Class  string
-	Method string
-	Addrs  []string
+	AppId  string   //客户端ID
+	Class  string   //类名
+	Method string   //方法名
+	Addrs  []string //服务器地址
 }
 
-// demo: UserService.user.GetUser
+// demo: UserService.Test.sum
 func NewService(servicePath string) (*Service, error) {
 	arr := strings.Split(servicePath, ".")
 	service := &Service{}
@@ -25,5 +26,7 @@ func NewService(servicePath string) (*Service, error) {
 	return service, nil
 }
 func (service *Service) SelectAddr() string {
-	return "ip:8811"
+	//todo 服務中心
+	return config.ADDR
+	//return "127.0.0.1:4545"
 }

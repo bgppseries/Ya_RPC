@@ -28,7 +28,7 @@ func (svr *RPCServer) Close() {
 	}
 }
 
-// 服务注册
+// Register 服务注册
 func (svr *RPCServer) Register(class interface{}) {
 	name := reflect.Indirect(reflect.ValueOf(class)).Type().Name()
 	svr.RegisterName(name, class)
@@ -43,5 +43,6 @@ func (l *RPCListener) SetHandler(name string, handler Handler) {
 		log.Printf("%s is registered!\n", name)
 		return
 	}
+	log.Println(name, "set handler success")
 	l.Handlers[name] = handler
 }

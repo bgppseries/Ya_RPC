@@ -13,10 +13,10 @@ type RPCMsg struct {
 	Payload       []byte
 }
 
-const SPLIT_LEN = 4
+const SplitLen = 4
 
 func NewRPCMsg() *RPCMsg {
-	header := Header([HEADER_LEN]byte{})
+	header := Header([HeaderLen]byte{})
 	header[0] = magicNumber
 	return &RPCMsg{
 		Header: &header,
@@ -24,51 +24,50 @@ func NewRPCMsg() *RPCMsg {
 }
 
 func (msg *RPCMsg) Send(writer io.Writer) error {
-	//send header
+	//发送报文头
 	_, err := writer.Write(msg.Header[:])
 	if err != nil {
 		return err
 	}
 
-	//write body total len :4 byte
-	dataLen := SPLIT_LEN + len(msg.ServiceClass) + SPLIT_LEN + len(msg.ServiceMethod) + SPLIT_LEN + len(msg.Payload)
+	//发送报文总长度
+	dataLen := SplitLen + len(msg.ServiceClass) + SplitLen + len(msg.ServiceMethod) + SplitLen + len(msg.Payload)
 	err = binary.Write(writer, binary.BigEndian, uint32(dataLen)) //4
 	if err != nil {
 		return err
 	}
 
-	//write service class len :4 byte
+	//发送要申请的方法的类的长度 4byte
 	err = binary.Write(writer, binary.BigEndian, uint32(len(msg.ServiceClass)))
 	if err != nil {
 		return err
 	}
 
-	//write service class
+	//发送要申请的方法的类
 	err = binary.Write(writer, binary.BigEndian, StringToByte(msg.ServiceClass))
 	if err != nil {
 		return err
 	}
 
-	//write service method len :4 byte
+	//发送要申请的方法的长度 4byte
 	err = binary.Write(writer, binary.BigEndian, uint32(len(msg.ServiceMethod)))
 	if err != nil {
 		return err
 	}
 
-	//write service method
+	//发送要申请的方法
 	err = binary.Write(writer, binary.BigEndian, StringToByte(msg.ServiceMethod))
 	if err != nil {
 		return err
 	}
 
-	//write payload len :4 byte
+	//发送函数参数的长度 4byte
 	err = binary.Write(writer, binary.BigEndian, uint32(len(msg.Payload)))
 	if err != nil {
 		return err
 	}
 
-	//write payload
-	//err = binary.Write(writer, binary.BigEndian, msg.Payload)
+	//发送函数参数
 	_, err = writer.Write(msg.Payload)
 	if err != nil {
 		return err
@@ -76,14 +75,14 @@ func (msg *RPCMsg) Send(writer io.Writer) error {
 	return nil
 }
 
+// Decode 对收到的报文进行解码
 func (msg *RPCMsg) Decode(r io.Reader) error {
-	//read header
+
 	_, err := io.ReadFull(r, msg.Header[:])
 	if !msg.Header.CheckMagicNumber() { //magicNumber
 		return fmt.Errorf("magic number error,data is wrong: %v", msg.Header[0])
 	}
 
-	//total body len
 	headerByte := make([]byte, 4)
 	_, err = io.ReadFull(r, headerByte)
 	if err != nil {
@@ -91,36 +90,29 @@ func (msg *RPCMsg) Decode(r io.Reader) error {
 	}
 	bodyLen := binary.BigEndian.Uint32(headerByte)
 
-	//read all body
 	data := make([]byte, bodyLen)
 	_, err = io.ReadFull(r, data)
 
-	//service class len
 	start := 0
-	end := start + SPLIT_LEN
+	end := start + SplitLen
 	classLen := binary.BigEndian.Uint32(data[start:end]) //0,4
 
-	//service class
 	start = end
 	end = start + int(classLen)
 	msg.ServiceClass = ByteToString(data[start:end]) //4,x
 
-	//service method len
 	start = end
-	end = start + SPLIT_LEN
+	end = start + SplitLen
 	methodLen := binary.BigEndian.Uint32(data[start:end]) //x,x+4
 
-	//service method
 	start = end
 	end = start + int(methodLen)
 	msg.ServiceMethod = ByteToString(data[start:end]) //x+4, x+4+y
 
-	//payload len
 	start = end
-	end = start + SPLIT_LEN
+	end = start + SplitLen
 	binary.BigEndian.Uint32(data[start:end]) //x+4+y, x+y+8 payloadLen
 
-	//payload
 	start = end
 	msg.Payload = data[start:]
 	return nil
